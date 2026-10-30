@@ -17,6 +17,12 @@ METAFORO_HEADERS = {
     'accept': 'application/json, text/plain, */*',
     'api_key': 'metaforo_website',
     'origin': 'https://dao.ckb.community',
+    'sec-ch-ua': '"Not=A?Brand";v="99", "Google Chrome";v="141", "Chromium";v="141"',
+    'sec-ch-ua-mobile': '?0',
+    'sec-ch-ua-platform': '"macOS"',
+    'sec-fetch-dest': 'empty',
+    'sec-fetch-mode': 'cors',
+    'sec-fetch-site': 'same-origin',
     'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36'
 }
 
@@ -106,24 +112,43 @@ def request_with_retry(method, url, headers, timeout=20, max_retries=MAX_RETRIES
 def parse_thread_id_from_url(url: str) -> int:
     """
     从 Metaforo 投票页面 URL 中解析出 thread_id。
-    
+
     支持的 URL 格式:
     - https://dao.ckb.community/thread/66568
     - https://dao.ckb.community/thread/vot-ckb-integration-for-rosen-bridge-66568
-    
+    - https://dao.ckb.community/landing?method=share&thread=80044&refer_id=53572
+    - https://dao.ckb.community/thread/80044?sort=new
+    - 80044
+
     Args:
-        url: Metaforo 投票页面的 URL
-    
+        url: Metaforo 投票页面的 URL 或包含提案 ID 的字符串
+
     Returns:
         thread_id 整数
-    
+
     Raises:
         ValueError: 如果无法从 URL 中解析出 thread_id
     """
-    # 匹配 URL 末尾的数字（thread_id 总是在最后）
-    match = re.search(r'(\d+)$', url.rstrip('/'))
+    clean_url = url.strip()
+    if clean_url.isdigit():
+        return int(clean_url)
+
+    # 1. 检查 query 参数: thread=80044 或 thread_id=80044
+    match = re.search(r'[?&](?:thread|thread_id)=(\d+)', clean_url)
     if match:
         return int(match.group(1))
+
+    # 2. 检查 path 参数: /thread/...-80044
+    match = re.search(r'/thread/[^?#]*?(\d+)(?:[/?#]|$)', clean_url)
+    if match:
+        return int(match.group(1))
+
+    # 3. 兜底匹配路径末尾的数字 (在 ? 或 # 之前)
+    path_only = re.split(r'[?#]', clean_url)[0].rstrip('/')
+    match = re.search(r'(\d+)$', path_only)
+    if match:
+        return int(match.group(1))
+
     raise ValueError(f"无法从 URL 中解析 thread_id: {url}")
 
 
@@ -164,7 +189,7 @@ def get_poll_options(thread_id: int):
             for opt in options:
                 print(f"  - {opt.get('html')} (ID: {opt.get('id')}, 投票数: {opt.get('voters')}, 权重: {opt.get('weights')})")
             
-            return [{"id": opt.get("id"), "html": opt.get("html")} for opt in options], thread_id
+            return [{"id": opt.get("id"), "html": opt.get("html"), "weights": opt.get("weights", 0)} for opt in options], thread_id
         else:
             print(f"获取帖子信息失败: {data.get('description')}")
             return None

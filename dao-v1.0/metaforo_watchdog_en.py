@@ -17,6 +17,12 @@ METAFORO_HEADERS = {
     'accept': 'application/json, text/plain, */*',
     'api_key': 'metaforo_website',
     'origin': 'https://dao.ckb.community',
+    'sec-ch-ua': '"Not=A?Brand";v="99", "Google Chrome";v="141", "Chromium";v="141"',
+    'sec-ch-ua-mobile': '?0',
+    'sec-ch-ua-platform': '"macOS"',
+    'sec-fetch-dest': 'empty',
+    'sec-fetch-mode': 'cors',
+    'sec-fetch-site': 'same-origin',
     'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36'
 }
 
@@ -106,24 +112,43 @@ def request_with_retry(method, url, headers, timeout=20, max_retries=MAX_RETRIES
 def parse_thread_id_from_url(url: str) -> int:
     """
     Parse thread_id from Metaforo voting page URL.
-    
+
     Supported URL formats:
     - https://dao.ckb.community/thread/66568
     - https://dao.ckb.community/thread/vot-ckb-integration-for-rosen-bridge-66568
-    
+    - https://dao.ckb.community/landing?method=share&thread=80044&refer_id=53572
+    - https://dao.ckb.community/thread/80044?sort=new
+    - 80044
+
     Args:
-        url: Metaforo voting page URL
-    
+        url: Metaforo voting page URL or string containing thread ID
+
     Returns:
         thread_id integer
-    
+
     Raises:
         ValueError: If thread_id cannot be parsed from URL
     """
-    # Match digits at the end of URL (thread_id is always at the end)
-    match = re.search(r'(\d+)$', url.rstrip('/'))
+    clean_url = url.strip()
+    if clean_url.isdigit():
+        return int(clean_url)
+
+    # 1. Check query parameter: thread=80044 or thread_id=80044
+    match = re.search(r'[?&](?:thread|thread_id)=(\d+)', clean_url)
     if match:
         return int(match.group(1))
+
+    # 2. Check path parameter: /thread/...-80044
+    match = re.search(r'/thread/[^?#]*?(\d+)(?:[/?#]|$)', clean_url)
+    if match:
+        return int(match.group(1))
+
+    # 3. Fallback: match digits at the end of path (before ? or #)
+    path_only = re.split(r'[?#]', clean_url)[0].rstrip('/')
+    match = re.search(r'(\d+)$', path_only)
+    if match:
+        return int(match.group(1))
+
     raise ValueError(f"Cannot parse thread_id from URL: {url}")
 
 
@@ -164,7 +189,7 @@ def get_poll_options(thread_id: int):
             for opt in options:
                 print(f"  - {opt.get('html')} (ID: {opt.get('id')}, Voters: {opt.get('voters')}, Weight: {opt.get('weights')})")
             
-            return [{"id": opt.get("id"), "html": opt.get("html")} for opt in options], thread_id
+            return [{"id": opt.get("id"), "html": opt.get("html"), "weights": opt.get("weights", 0)} for opt in options], thread_id
         else:
             print(f"Failed to get thread info: {data.get('description')}")
             return None

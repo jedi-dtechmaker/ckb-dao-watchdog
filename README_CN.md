@@ -95,3 +95,30 @@ MIT 许可证 - 详见 [LICENSE](./LICENSE)。
 - [CKB Community Fund DAO](https://dao.ckb.community)
 - [Nervos CKB Explorer](https://explorer.app5.org)
 - [CKBFans DAO](https://github.com/ckbfansdao)
+
+## 浏览器界面
+
+安装 Python 3.11+ 和依赖后，在项目根目录启动：
+
+```bash
+pip install -r dao-v1.0/requirements.txt
+python app.py
+```
+
+在浏览器打开 http://localhost:5000，输入 Metaforo 提案链接或帖子 ID，
+即可预览投票选项并核验当前链上存单。界面支持中英文切换、实时进度、
+按投票人或地址查看、差异筛选以及 CSV/JSON 下载。
+历史报告包含仓库中的 `Verification Logs - …` 目录和浏览器生成的报告。
+部分旧报告没有投票时间或帖子 ID。
+
+新报告保存在 `dao-v1.0/vote_result/`，该目录已被 Git 忽略。
+实时核验使用当前存单数据，差异需人工复核，不能仅凭差异认定投票时无效。
+
+也可在项目根目录通过 Docker 启动：
+
+```bash
+docker compose -f dao-v1.0/docker-compose.yaml up --build watchdog-web
+```
+
+使用 `HOST` 和 `PORT` 可调整 Python 服务的监听地址和端口。
+原有命令行功能和报告格式继续可用。

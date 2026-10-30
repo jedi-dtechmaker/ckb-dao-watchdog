@@ -1,0 +1,4 @@
+requests
+# Newer pyckb releases fail to import on Python 3.13.
+pyckb==1.1.1
+flask>=3.1,<4

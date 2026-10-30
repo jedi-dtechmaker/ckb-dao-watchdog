@@ -95,3 +95,32 @@ MIT License - see [LICENSE](./LICENSE) for details.
 - [CKB Community Fund DAO](https://dao.ckb.community)
 - [Nervos CKB Explorer](https://explorer.nervos.org)
 - [CKBFans](https://github.com/ckbfans)
+
+## Browser interface
+
+Install Python 3.11+ and the dependencies, then launch from the repository root:
+
+```bash
+pip install -r dao-v1.0/requirements.txt
+python app.py
+```
+
+Open http://localhost:5000. Paste a Metaforo proposal link or thread ID to preview
+poll choices and verify votes against current on-chain deposits. The interface
+supports English and Chinese, live progress, voter/address views, discrepancy
+filters, and CSV/JSON downloads. Past Reports includes the bundled
+`Verification Logs - …` folders and reports generated through the web interface.
+Older reports may not include vote timestamps or proposal IDs.
+
+New reports are stored in `dao-v1.0/vote_result/` (ignored by Git).
+Live checks reflect current deposits; discrepancies need manual review and do
+not by themselves establish that a vote was invalid when cast.
+
+For Docker, run from the repository root:
+
+```bash
+docker compose -f dao-v1.0/docker-compose.yaml up --build watchdog-web
+```
+
+Set `HOST` and `PORT` to change the Python server's bind address and port.
+The existing CLI commands and report formats remain available.

@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CKB DAO Watchdog — Verify Governance Voting On-Chain</title>
+  <meta name="description" content="Simple, independent tool to verify Metaforo CKB DAO votes against real Nervos DAO on-chain deposits.">
+
+  <!-- Typography: Inter for clean UI, JetBrains Mono for numbers/addresses -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%22><text y=%2226%22 font-size=%2226%22>🐕</text></svg>">
+</head>
+<body>
+
+  <!-- Top Navigation -->
+  <header class="top-nav">
+    <div class="nav-inner">
+      <div class="nav-brand" onclick="switchView('runner')">
+        <span class="brand-avatar">🐕</span>
+        <div class="brand-info">
+          <span class="brand-name">CKB DAO Watchdog</span>
+          <span class="brand-tag">Governance Vote Verifier</span>
+        </div>
+      </div>
+
+      <nav class="nav-menu">
+        <button id="nav-runner-btn" class="menu-item active" onclick="switchView('runner')">
+          <span data-i18n="nav_runner">Audit a Proposal</span>
+        </button>
+        <button id="nav-archives-btn" class="menu-item" onclick="switchView('archives')">
+          <span data-i18n="nav_archives">Past Reports</span>
+        </button>
+        <button id="nav-docs-btn" class="menu-item" onclick="openDocsModal()">
+          <span data-i18n="nav_cli">How It Works</span>
+        </button>
+      </nav>
+
+      <div class="nav-meta">
+        <div class="network-pill" title="Connected to Nervos CKB Mainnet">
+          <span class="dot-online"></span>
+          <span>Mainnet</span>
+        </div>
+        <button id="lang-toggle-btn" class="lang-switch" onclick="toggleLanguage()" title="Switch language">
+          <span id="current-lang-text">中文</span>
+        </button>
+        <a href="https://github.com/CKBFansDAO/ckb-dao-watchdog" target="_blank" rel="noopener noreferrer" class="nav-icon-link" title="View Source on GitHub">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+          </svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Page Content Container -->
+  <main class="page-container">
+
+    <!-- VIEW 1: RUNNER / AUDITOR -->
+    <section id="runner-view" class="view-panel active">
+
+      <!-- Search & Input Card -->
+      <div class="search-panel">
+        <div class="search-header">
+          <h1 class="page-title" data-i18n="hero_title">Check CKB DAO Voting Weights</h1>
+          <p class="page-sub" data-i18n="hero_desc">
+            Make sure voting weight shown on Metaforo actually matches the voter's locked CKB deposits in Nervos DAO.
+          </p>
+        </div>
+
+        <div class="input-row">
+          <div class="url-input-box">
+            <span class="input-icon">🔗</span>
+            <input
+              type="text"
+              id="metaforo-url-input"
+              placeholder="Paste Metaforo proposal link (e.g. https://dao.ckb.community/thread/...-66568) or ID"
+              spellcheck="false"
+            />
+            <button id="clear-input-btn" class="btn-clear" onclick="clearInput()" title="Clear">✕</button>
+          </div>
+
+          <button id="inspect-btn" class="btn-secondary" onclick="handleInspectPoll()">
+            <span data-i18n="btn_inspect">Inspect</span>
+          </button>
+
+          <button id="start-audit-btn" class="btn-orange" onclick="handleStartAudit()">
+            <span data-i18n="btn_start_audit">Verify On-Chain</span>
+          </button>
+        </div>
+
+        <!-- Examples Row -->
+        <div class="examples-row">
+          <span class="examples-label" data-i18n="presets_label">Try a past proposal:</span>
+          <button class="pill-btn" onclick="loadPreset('https://dao.ckb.community/landing?method=share&thread=80044&refer_id=53572', '80044')">
+            Proposal (#80044)
+          </button>
+          <button class="pill-btn" onclick="loadPreset('https://dao.ckb.community/thread/vot-ckb-integration-for-rosen-bridge-66568', '66568')">
+            Rosen Bridge (#66568)
+          </button>
+          <button class="pill-btn" onclick="loadPreset('https://dao.ckb.community/thread/vot-fiber-link-a-decentralized-cross-chain-liquidity-network-67302', '67302')">
+            Fiber Link (#67302)
+          </button>
+          <button class="pill-btn" onclick="loadPreset('https://dao.ckb.community/thread/vot-ckb-pocket-node-an-open-source-ckb-light-node-device-67494', '67494')">
+            Pocket Node (#67494)
+          </button>
+        </div>
+      </div>
+
+      <!-- Live Audit Progress Box -->
+      <div id="live-progress-card" class="progress-box hidden">
+        <div class="progress-info-row">
+          <div class="progress-left">
+            <div class="orange-spinner"></div>
+            <div>
+              <div class="progress-main-msg" id="progress-status-text" data-i18n="progress_verifying">Checking Nervos DAO deposits on-chain...</div>
+              <div class="progress-sub-msg" id="progress-detail-text">Querying CKB Explorer and Metaforo APIs...</div>
+            </div>
+          </div>
+          <div class="progress-percent" id="progress-percentage">0%</div>
+        </div>
+
+        <div class="progress-bar-bg">
+          <div id="progress-bar-fill" class="progress-bar-orange" style="width: 0%;"></div>
+        </div>
+
+        <div class="logs-toggle" onclick="toggleTerminalDrawer()">
+          <span id="terminal-chevron" class="chevron">▸</span>
+          <span data-i18n="drawer_terminal">Show detailed verification log</span>
+        </div>
+
+        <div id="terminal-drawer-content" class="logs-console" style="display: none;">
+          <div id="terminal-logs" class="logs-inner"></div>
+        </div>
+      </div>
+
+      <!-- Audit Results Panel -->
+      <div id="audit-results-container" class="results-panel hidden">
+
+        <!-- Proposal Header -->
+        <div class="proposal-strip">
+          <div class="strip-left">
+            <div class="thread-badge" id="banner-thread-id">#66568</div>
+            <div class="strip-titles">
+              <h2 class="strip-name" id="banner-proposal-title">Proposal Vote Audit</h2>
+              <div class="strip-sub">
+                <span id="banner-timestamp">Audited: --</span>
+                <span class="bullet">•</span>
+                <span id="banner-status-badge" class="tag-clean">Verified</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="strip-actions">
+            <button class="btn-outline" onclick="exportCurrentCSV()">
+              <span>📥</span> <span data-i18n="btn_export_csv">Export CSV</span>
+            </button>
+            <button class="btn-outline" onclick="exportCurrentJSON()">
+              <span>📥</span> <span data-i18n="btn_export_json">Export JSON</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Option Selection Tabs -->
+        <div class="option-picker-row">
+          <span class="option-picker-label" data-i18n="tabs_options">Voting Choices:</span>
+          <div id="poll-options-tabs" class="option-pills"></div>
+        </div>
+
+        <!-- Summary Metric Cards -->
+        <div class="stats-cards-row">
+          <div class="stat-box">
+            <div class="stat-label" data-i18n="stat_total_voters">Total Voters</div>
+            <div class="stat-number" id="stat-voters-count">--</div>
+            <div class="stat-note" id="stat-voters-sub">Ballots cast</div>
+          </div>
+
+          <div class="stat-box">
+            <div class="stat-label" data-i18n="stat_metaforo_weight">Metaforo Recorded</div>
+            <div class="stat-number font-mono" id="stat-metaforo-weight">-- CKB</div>
+            <div class="stat-note" data-i18n="stat_metaforo_sub">Weight reported on forum</div>
+          </div>
+
+          <div class="stat-box">
+            <div class="stat-label" data-i18n="stat_chain_weight">On-Chain Calculated</div>
+            <div class="stat-number font-mono" id="stat-chain-weight">-- CKB</div>
+            <div class="stat-note" data-i18n="stat_chain_sub">Sum of live Nervos DAO deposits</div>
+          </div>
+
+          <div class="stat-box" id="discrepancy-metric-card">
+            <div class="stat-label" data-i18n="stat_discrepancies">Discrepancies</div>
+            <div class="stat-number" id="stat-discrepancies-count">0</div>
+            <div class="stat-note" id="stat-discrepancies-sub">All weights match on-chain</div>
+          </div>
+
+          <div class="stat-box">
+            <div class="stat-label" data-i18n="stat_match_rate">Match Rate</div>
+            <div class="stat-number font-mono" id="stat-match-rate">100%</div>
+            <div class="stat-note">On-chain vote integrity</div>
+          </div>
+        </div>
+
+        <!-- Table Controls & Search -->
+        <div class="table-bar">
+          <div class="table-search-box">
+            <span class="search-ico">🔍</span>
+            <input
+              type="text"
+              id="table-search-input"
+              placeholder="Search by voter name, user ID, or CKB address..."
+              oninput="handleTableSearch()"
+            />
+          </div>
+
+          <div class="table-actions">
+            <!-- Filter by Status -->
+            <div class="filter-switch">
+              <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">
+                <span data-i18n="filter_all">All</span> (<span id="count-all">0</span>)
+              </button>
+              <button class="filter-btn alert-pill" data-filter="review" onclick="setFilter('review')">
+                <span data-i18n="filter_review">Needs Review</span> (<span id="count-review">0</span>)
+              </button>
+              <button class="filter-btn clean-pill" data-filter="verified" onclick="setFilter('verified')">
+                <span data-i18n="filter_verified">Matches</span> (<span id="count-verified">0</span>)
+              </button>
+            </div>
+
+            <!-- View Mode Switch -->
+            <div class="mode-switch">
+              <button id="view-grouped-btn" class="mode-btn active" onclick="setViewMode('grouped')">
+                <span data-i18n="mode_voters">By Voter</span>
+              </button>
+              <button id="view-flat-btn" class="mode-btn" onclick="setViewMode('flat')">
+                <span data-i18n="mode_flat">By Address</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Clean Interactive Table -->
+        <div class="table-card">
+          <table class="report-table" id="audit-table">
+            <thead>
+              <tr>
+                <th style="width: 110px;" data-i18n="th_status">Status</th>
+                <th data-i18n="th_voter">Voter</th>
+                <th data-i18n="th_time">Vote Timestamp</th>
+                <th class="text-right" data-i18n="th_metaforo_wt">Metaforo Weight</th>
+                <th class="text-right" data-i18n="th_chain_wt">On-Chain Weight</th>
+                <th style="width: 380px;" data-i18n="th_addresses">Bound Addresses & Deposits</th>
+              </tr>
+            </thead>
+            <tbody id="audit-table-body"></tbody>
+          </table>
+
+          <div id="table-empty-state" class="table-empty-state hidden">
+            <div class="empty-icon">📂</div>
+            <div class="empty-title" data-i18n="empty_no_voters">No matching voters found</div>
+            <div class="empty-desc" data-i18n="empty_try_filter">Try searching for a different keyword or toggle the filter.</div>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- VIEW 2: ARCHIVES / PAST REPORTS -->
+    <section id="archives-view" class="view-panel hidden">
+      <div class="archives-top">
+        <div>
+          <h2 class="archive-heading" data-i18n="archives_title">Past Proposal Audits</h2>
+          <p class="archive-sub" data-i18n="archives_desc">
+            Browse reports from previously audited CKB DAO governance votes stored in this repository.
+          </p>
+        </div>
+        <div class="archive-search-box">
+          <input
+            type="text"
+            id="archives-search"
+            placeholder="Search proposals..."
+            oninput="handleArchivesSearch()"
+          />
+        </div>
+      </div>
+
+      <div id="archives-grid" class="archives-cards-grid">
+        <div class="loading-state">
+          <div class="orange-spinner"></div>
+          <span data-i18n="loading_archives">Loading archived reports...</span>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Clean Methodology & CLI Modal -->
+  <div id="docs-modal" class="modal-overlay hidden" onclick="closeDocsModal(event)">
+    <div class="modal-box" onclick="event.stopPropagation()">
+      <div class="modal-top">
+        <div class="modal-top-title">
+          <span>🐕</span>
+          <h3 data-i18n="docs_title">How CKB DAO Watchdog Works</h3>
+        </div>
+        <button class="modal-btn-close" onclick="closeDocsModal()">✕</button>
+      </div>
+
+      <div class="modal-scroll-body">
+        <div class="docs-block">
+          <h4 data-i18n="docs_calc_title">⚖️ How Voting Weights Are Calculated</h4>
+          <p data-i18n="docs_calc_desc">
+            CKB DAO governance uses Nervos DAO locked CKB capacity to determine vote weight. The Watchdog tool independently checks every single vote:
+          </p>
+          <ul class="docs-checklist">
+            <li><strong>1. Fetches voters:</strong> Gets all accounts who voted on the Metaforo poll and their recorded weights.</li>
+            <li><strong>2. Resolves addresses:</strong> Finds Neuron wallet addresses and converts any connected MetaMask Ethereum addresses to CKB PW-Lock addresses.</li>
+            <li><strong>3. Queries CKB Explorer:</strong> Finds all live cells with type <code>nervos_dao_deposit</code> for those addresses.</li>
+            <li><strong>4. Calculates total:</strong> Sums the capacity (in CKB) and compares it with what Metaforo recorded.</li>
+            <li><strong>5. Flags differences:</strong> If the on-chain sum doesn't match the recorded weight, it's flagged as <code>Needs Review</code>.</li>
+          </ul>
+        </div>
+
+        <div class="docs-block">
+          <h4 data-i18n="docs_cli_title">💻 Running from the Command Line</h4>
+          <p data-i18n="docs_cli_desc">Prefer using a terminal? You can run the exact same logic with Python directly:</p>
+          <pre class="cli-snippet"><code># 1. Activate your virtual environment
+source .venv/bin/activate
+
+# 2. Run the auditor script
+python dao-v1.0/metaforo_watchdog_en.py &lt;metaforo_url&gt;</code></pre>
+        </div>
+
+        <div class="docs-block">
+          <h4 data-i18n="docs_docker_title">🐳 Running in Docker</h4>
+          <pre class="cli-snippet"><code># Run the Web UI
+docker compose -f dao-v1.0/docker-compose.yaml up --build watchdog-web
+
+# Or run the CLI version
+docker compose -f dao-v1.0/docker-compose.yaml run --rm watchdog-web python dao-v1.0/metaforo_watchdog_en.py &lt;metaforo_url&gt;</code></pre>
+        </div>
+      </div>
+
+      <div class="modal-bottom">
+        <button class="btn-orange" onclick="closeDocsModal()" data-i18n="btn_got_it">Got It</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container" class="toast-stack"></div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

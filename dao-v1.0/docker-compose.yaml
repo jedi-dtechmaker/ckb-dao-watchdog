@@ -1,0 +1,12 @@
+services:
+  watchdog-web:
+    build:
+      context: ..
+      dockerfile: dao-v1.0/Dockerfile
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./vote_result:/app/dao-v1.0/vote_result
+    environment:
+      PORT: "5000"
+      HOST: "0.0.0.0"
