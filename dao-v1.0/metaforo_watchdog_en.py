@@ -327,6 +327,19 @@ def get_address_onchain_weight(address: str, strict: bool = False):
                 break # Last page reached
             page += 1
         except requests.exceptions.RequestException as e:
+            # Explorer reports an address it has never seen with this specific error.
+            # Only accept it on the first page; a later error could hide partial results.
+            if page == 1 and isinstance(e, requests.exceptions.HTTPError) and e.response is not None and e.response.status_code == 404:
+                try:
+                    errors = e.response.json()
+                except ValueError:
+                    errors = None
+                if isinstance(errors, list) and len(errors) == 1 and any(
+                    isinstance(error, dict) and error.get("code") == 1010 and error.get("status") == 404
+                    for error in errors
+                ):
+                    print(f"    Address not found in explorer; treating as zero: {address[:15]}...")
+                    return 0
             if strict:
                 raise RuntimeError("Could not retrieve deposits from CKB Explorer") from e
             # 404 errors are not retryable (address doesn't exist), just log and continue
