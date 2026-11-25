@@ -68,11 +68,11 @@ const i18n = {
     archives_title: "Past Proposal Audits",
     archives_desc: "Browse reports from previously audited CKB DAO governance votes stored in this repository.",
     docs_title: "How CKB DAO Watchdog Works",
-    docs_calc_title: "⚖️ How Voting Weights Are Calculated",
+    docs_calc_title: "How Voting Weights Are Calculated",
     docs_calc_desc: "CKB DAO governance uses Nervos DAO locked CKB capacity to determine vote weight. The Watchdog tool independently checks every single vote:",
-    docs_cli_title: "💻 Running from the Command Line",
+    docs_cli_title: "Running from the Command Line",
     docs_cli_desc: "Prefer using a terminal? You can run the exact same logic with Python directly:",
-    docs_docker_title: "🐳 Running in Docker",
+    docs_docker_title: "Running in Docker",
     btn_got_it: "Got It",
     loading_archives: "Loading archived reports...",
     status_verified: "Matches",
@@ -129,11 +129,11 @@ const i18n = {
     archives_title: "历史提案审计报告",
     archives_desc: "浏览本工具仓库内已收录的历史 CKB DAO 投票审计报告，可直接加载查验每一票链上明细与差异分析。",
     docs_title: "CKB DAO 审计原理与使用指南",
-    docs_calc_title: "⚖️ 验证与权重计算原理",
+    docs_calc_title: "验证与权重计算原理",
     docs_calc_desc: "CKB DAO 治理投票以用户在 Nervos DAO 锁仓的 CKB 容量计算票权。Watchdog 工具通过 5 步流程逐一核实：",
-    docs_cli_title: "💻 使用命令行 (CLI) 运行",
+    docs_cli_title: "使用命令行 (CLI) 运行",
     docs_cli_desc: "更喜欢终端命令行？直接使用 Python 执行即可：",
-    docs_docker_title: "🐳 使用 Docker 容器化运行",
+    docs_docker_title: "使用 Docker 容器化运行",
     btn_got_it: "我知道了",
     loading_archives: "正在加载历史审计档案...",
     status_verified: "一致",
@@ -166,7 +166,9 @@ function showToast(message, isError = false) {
   const toast = document.createElement('div');
   toast.className = `toast ${isError ? 'toast-error' : ''}`;
   const icon = document.createElement('span');
-  icon.textContent = isError ? '⚠️' : '🐕';
+  icon.className = 'toast-icon';
+  icon.setAttribute('aria-hidden', 'true');
+  icon.innerHTML = `<svg class="icon"><use href="/static/icons.svg#${isError ? 'alert' : 'check'}"></use></svg>`;
   const content = document.createElement('span');
   content.textContent = message;
   toast.append(icon, content);
@@ -648,6 +650,14 @@ function renderAuditData() {
   renderTable(voters, allRows);
 }
 
+// Labels keep each value understandable when result rows stack on small screens.
+function labelResultCells(row) {
+  const labels = ['th_status', 'th_voter', 'th_time', 'th_metaforo_wt', 'th_chain_wt', 'th_addresses'];
+  Array.from(row.cells).forEach((cell, index) => {
+    cell.dataset.label = i18n[state.lang][labels[index]];
+  });
+}
+
 // Render Table
 function renderTable(voters, allRows) {
   const tbody = document.getElementById('audit-table-body');
@@ -717,6 +727,7 @@ function renderTable(voters, allRows) {
         <td>${addressListHtml}</td>
       `;
 
+      labelResultCells(tr);
       tbody.appendChild(tr);
     });
 
@@ -770,9 +781,10 @@ function renderTable(voters, allRows) {
         <td class="text-right weight-cell ${!isReview ? 'weight-match' : 'weight-diff'}">
           ${formatCKB(row["total weight(on chain, floored)"] || 0)}
         </td>
-        <td>${addrHtml}</td>
+        <td><div>${addrHtml}</div></td>
       `;
 
+      labelResultCells(tr);
       tbody.appendChild(tr);
     });
   }
@@ -810,7 +822,7 @@ function exportCurrentCSV() {
   }
 
   const rows = activeOpt.export_data;
-  const headers = ["nickname", "userid", "voted_at", "total weight(metaforo)", "total weight(on chain, floored)", "⚠️need_review", "address", "address weight(floored)", "explorer_url"];
+  const headers = ["nickname", "userid", "voted_at", "total weight(metaforo)", "total weight(on chain, floored)", "need_review", "address", "address weight(floored)", "explorer_url"];
   
   let csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n";
   rows.forEach(r => {

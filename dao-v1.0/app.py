@@ -296,7 +296,7 @@ def run_audit_worker(job_id, thread_id, target_option_id=None):
             job_queue.put_nowait(event)
 
     try:
-        emit("log", f"🐕 Watchdog started audit for thread #{thread_id}")
+        emit("log", f"Watchdog started audit for thread #{thread_id}")
         dt = datetime.now().astimezone()
         offset = dt.strftime("%z")
         timestamp = dt.strftime("%Y%m%d_%H%M%S") + f"(UTC+{int(offset[:3])})"
@@ -394,7 +394,7 @@ def run_audit_worker(job_id, thread_id, target_option_id=None):
                     vote["weight_calc"] = total_onchain_weight
                     
                 is_discrepancy = metaforo_weight != math.floor(vote.get("weight_calc", 0))
-                diff_label = "⚠️ DISCREPANCY" if is_discrepancy else "✅ VERIFIED"
+                diff_label = "DISCREPANCY" if is_discrepancy else "VERIFIED"
                 emit("log", f"  ↳ Result: Metaforo: {metaforo_weight:,.2f} | On-Chain: {vote.get('weight_calc', 0):,.2f} [{diff_label}]")
 
                 # Emit single voter audited event
@@ -464,13 +464,12 @@ def run_audit_worker(job_id, thread_id, target_option_id=None):
                 json.dump(export_data, f, ensure_ascii=False, indent=4)
                 
             import csv
-            fieldnames = ["nickname", "userid", "voted_at", "total weight(metaforo)", "total weight(on chain, floored)", "⚠️need_review", "address", "address weight(floored)", "explorer_url"]
+            fieldnames = ["nickname", "userid", "voted_at", "total weight(metaforo)", "total weight(on chain, floored)", "need_review", "address", "address weight(floored)", "explorer_url"]
             with open(csv_path, 'w', newline='', encoding='utf-8') as f:
                 writer = csv.DictWriter(f, fieldnames=fieldnames)
                 writer.writeheader()
                 for row in export_data:
                     csv_row = dict(row)
-                    csv_row["⚠️need_review"] = csv_row.pop("need_review")
                     writer.writerow(csv_row)
 
             emit("log", f"Saved JSON report: vote_result/{thread_id}/{json_file}")
@@ -490,7 +489,7 @@ def run_audit_worker(job_id, thread_id, target_option_id=None):
             "timestamp": timestamp,
             "options": all_option_results
         })
-        emit("log", "🎉 Audit completed successfully for all options!")
+        emit("log", "Audit completed successfully for all options!")
         JOBS[job_id]["status"] = "completed"
         
     except Exception:
@@ -603,5 +602,5 @@ def stream_audit(job_id):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     host = os.environ.get("HOST", "127.0.0.1")
-    print(f"🐕 CKB DAO Watchdog Web UI starting on http://{host}:{port}")
+    print(f"CKB DAO Watchdog Web UI starting on http://{host}:{port}")
     app.run(host=host, port=port, debug=False)
