@@ -42,17 +42,46 @@ ckb-dao-watchdog/
 - 依赖包：
 
 ```bash
-pip install requests pyckb
+pip install -r dao-v1.0/requirements.txt
 ```
 
 ### 使用方法
+
+#### 1. Web 网页前端（适合不想用终端的用户）
+
+拥有直观的可视化仪表板、实时进度流、差异高亮筛选及一键导出：
+
+```bash
+# 在项目根目录下运行
+python app.py
+```
+然后在浏览器中打开 **`http://localhost:5000`** 即可。
+
+#### 2. 命令行 (CLI) 运行
+
+直接在终端执行审计：
 
 ```bash
 # 进入 dao-v1.0 目录
 cd dao-v1.0
 
-# 使用 Metaforo 投票页面 URL 运行
+# 运行中文版脚本
 python metaforo_watchdog_cn.py https://dao.ckb.community/thread/vot-ckb-integration-for-rosen-bridge-66568
+
+# 或英文版脚本
+python metaforo_watchdog_en.py https://dao.ckb.community/thread/vot-ckb-integration-for-rosen-bridge-66568
+```
+
+#### 3. Docker 容器化运行
+
+```bash
+cd dao-v1.0
+
+# 启动 Web 前端服务
+docker-compose up watchdog-web
+
+# 或在容器中运行 CLI
+docker-compose run watchdog-cn <metaforo_url>
 ```
 
 详细使用说明请参阅 [dao-v1.0/README_CN.md](./dao-v1.0/README_CN.md)。

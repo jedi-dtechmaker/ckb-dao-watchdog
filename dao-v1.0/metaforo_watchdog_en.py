@@ -116,9 +116,12 @@ def parse_thread_id_from_url(url: str) -> int:
     Supported URL formats:
     - https://dao.ckb.community/thread/66568
     - https://dao.ckb.community/thread/vot-ckb-integration-for-rosen-bridge-66568
+    - https://dao.ckb.community/landing?method=share&thread=80044&refer_id=53572
+    - https://dao.ckb.community/thread/80044?sort=new
+    - 80044
     
     Args:
-        url: Metaforo voting page URL
+        url: Metaforo voting page URL or string containing thread ID
     
     Returns:
         thread_id integer
@@ -126,10 +129,26 @@ def parse_thread_id_from_url(url: str) -> int:
     Raises:
         ValueError: If thread_id cannot be parsed from URL
     """
-    # Match digits at the end of URL (thread_id is always at the end)
-    match = re.search(r'(\d+)$', url.rstrip('/'))
+    clean_url = url.strip()
+    if clean_url.isdigit():
+        return int(clean_url)
+    
+    # 1. Check query parameter: thread=80044 or thread_id=80044
+    match = re.search(r'[?&](?:thread|thread_id)=(\d+)', clean_url)
     if match:
         return int(match.group(1))
+    
+    # 2. Check path parameter: /thread/...-80044
+    match = re.search(r'/thread/[^?#]*?(\d+)(?:[/?#]|$)', clean_url)
+    if match:
+        return int(match.group(1))
+    
+    # 3. Fallback: match digits at the end of path (before ? or #)
+    path_only = re.split(r'[?#]', clean_url)[0].rstrip('/')
+    match = re.search(r'(\d+)$', path_only)
+    if match:
+        return int(match.group(1))
+        
     raise ValueError(f"Cannot parse thread_id from URL: {url}")
 
 
@@ -245,7 +264,7 @@ def get_all_votes(option_id: int):
         time.sleep(0.5) # Avoid too frequent requests
     return all_votes
 
-def get_user_dao_addresses(user_id: int):
+def get_user_dao_addresses(user_id: int, strict: bool = False):
     """
     Get user's bound Nervos DAO address list, including Neuron addresses and PW Lock address converted from web3_public_key.
     
@@ -272,12 +291,16 @@ def get_user_dao_addresses(user_id: int):
             return addresses
         else:
             print(f"  Failed to get addresses for user {user_id}: {data.get('description')}")
+            if strict:
+                raise RuntimeError("Could not retrieve voter addresses from Metaforo")
             return []
     except requests.exceptions.RequestException as e:
         print(f"  Network error when requesting profile API (all retries failed): {e}")
+        if strict:
+            raise RuntimeError("Could not retrieve voter addresses from Metaforo") from e
         return []
 
-def get_address_onchain_weight(address: str):
+def get_address_onchain_weight(address: str, strict: bool = False):
     """
     Fetch and calculate the total weight of a single CKB address in Nervos DAO with pagination.
     """
@@ -290,7 +313,9 @@ def get_address_onchain_weight(address: str):
         try:
             url = f"{EXPLORER_API_BASE}/address_live_cells/{address}?page={page}&page_size={page_size}&sort=capacity.desc"
             response = request_with_retry('get', url, headers=EXPLORER_HEADERS)
-            data = response.json().get("data", [])
+            data = response.json().get("data")
+            if not isinstance(data, list):
+                raise ValueError("Invalid explorer response")
 
             for cell in data:
                 attributes = cell.get("attributes", {})
@@ -302,13 +327,17 @@ def get_address_onchain_weight(address: str):
                 break # Last page reached
             page += 1
         except requests.exceptions.RequestException as e:
+            if strict:
+                raise RuntimeError("Could not retrieve deposits from CKB Explorer") from e
             # 404 errors are not retryable (address doesn't exist), just log and continue
             if hasattr(e, 'response') and e.response is not None and e.response.status_code == 404:
                 print(f"    Address not found in explorer (404): {address[:15]}...")
             else:
                 print(f"    Network error when requesting explorer API (all retries failed): {e}")
             break
-        except (json.JSONDecodeError, KeyError) as e:
+        except (ValueError, KeyError) as e:
+            if strict:
+                raise RuntimeError("Invalid response from CKB Explorer") from e
             print(f"    Error parsing explorer API response: {e}")
             break
         time.sleep(0.5) # Avoid too frequent requests

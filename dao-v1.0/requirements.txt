@@ -1,2 +1,4 @@
 requests
 pyckb
+flask
+gunicorn>=23,<24
