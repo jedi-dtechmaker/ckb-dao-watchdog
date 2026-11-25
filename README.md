@@ -126,11 +126,15 @@ MIT License - see [LICENSE](./LICENSE) for details.
 - [CKBFans](https://github.com/ckbfans)
 ## Deploying the web app
 
-The browser interface and API run together as one Python web service. Push your changes to your own fork, then connect that fork and branch to a host such as Render. For a Render web service use:
+The browser interface and API run together as one Python web service. Push your changes to your own fork, then connect that fork and branch to a host such as Render. For a Render Docker web service use:
 
+- **Runtime:** Docker
 - **Root directory:** `dao-v1.0`
-- **Build command:** `pip install -r requirements.txt`
-- **Start command:** `gunicorn --workers 1 --threads 8 --timeout 120 --bind 0.0.0.0:$PORT app:app`
+- **Dockerfile path:** `./Dockerfile.web`
+- **Docker build context:** `.`
+- **Docker command:** leave blank to use the Dockerfile's startup command
+
+The web image starts Gunicorn on the port supplied by Render. The existing `Dockerfile` remains the CLI image.
 
 The app uses in-memory jobs and progress streams: run exactly **one worker and one service instance**. Up to two audits can run at once, and a short interval between new jobs protects the service and upstream APIs. A restart interrupts running audits. These limits are shared by all visitors and are not a substitute for host-level rate limiting or authentication on a larger public deployment.
 

@@ -14,8 +14,9 @@ services:
     # Usage: docker-compose run watchdog-en <url_or_id>
 
   watchdog-web:
-    build: .
-    entrypoint: ["gunicorn", "--workers", "1", "--threads", "8", "--timeout", "120", "--bind", "0.0.0.0:5000", "app:app"]
+    build:
+      context: .
+      dockerfile: Dockerfile.web
     ports:
       - "5000:5000"
     volumes:
